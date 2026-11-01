@@ -40,7 +40,7 @@ jobs:
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Extract project ZIP
-        run: unzip -q BUILD_HIM_v1_2_JVM17_FIXED.zip -d extracted
+        run: unzip -q buildhim.zip -d extracted
 
       - name: Build debug APK
         working-directory: extracted/BuildHim_Android
