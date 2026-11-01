@@ -41,12 +41,12 @@ jobs:
 
       - name: Extract project ZIP
         run: unzip -q buildhim_fixed.zip -d extracted
-      - name: Align Java target to 17
+      - name: Inspect ZIP contents
         run: |
-          APP_GRADLE=$(find extracted -type f -path '*/app/build.gradle' | head -n 1)
-          echo "Found: $APP_GRADLE"
-          test -n "$APP_GRADLE"
-          sed -i 's/VERSION_1_8/VERSION_17/g; s/jvmTarget = "1.8"/jvmTarget = "17"/g' "$APP_GRADLE"
+          echo "ZIP CONTENTS:"
+          unzip -l buildhim_fixed.zip | head -80
+          echo "EXTRACTED FILES:"
+          find extracted -maxdepth 5 -type f | head -100
       - name: Build debug APK
         working-directory: extracted/BuildHim_Android
         run: gradle --no-daemon assembleDebug
