@@ -1,3 +1,4 @@
+
 name: Build BUILD HIM APK
 
 on:
@@ -12,7 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -26,43 +27,47 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
-      - name: Accept Android SDK licences and install SDK 35
-        run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Accept Android SDK licences
+        run: yes | sdkmanager --licenses || true
 
-      - name: Install Gradle 8.9
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
-          unzip -q gradle-8.9-bin.zip -d "$HOME/gradle"
-          echo "$HOME/gradle/gradle-8.9/bin" >> "$GITHUB_PATH"
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-      - name: Verify project ZIP
+      - name: Verify and extract source ZIP
         run: |
-          test -f BUILD_HIM_v1_2_FIXED_SOURCE.zip
-          unzip -t BUILD_HIM_v1_2_FIXED_SOURCE.zip
-          mkdir -p extracted
-          unzip -q BUILD_HIM_v1_2_FIXED_SOURCE.zip -d extracted
-
-      - name: Build debug APK
-        shell: bash
-        run: |
-          SETTINGS_FILE="$(find extracted -type f \( -name settings.gradle.kts -o -name settings.gradle \) -print -quit)"
-          if [ -z "$SETTINGS_FILE" ]; then
-            echo "::error::Gradle project not found"
-            find extracted -maxdepth 5 -type f
+          ZIP_FILE="BUILD_HIM_v1_2_FIXED_SOURCE.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "::error::Source ZIP not found: $ZIP_FILE"
+            ls -la
             exit 1
           fi
-          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
-          echo "Building project at: $PROJECT_DIR"
-          gradle --version
-          gradle --no-daemon --stacktrace -p "$PROJECT_DIR" assembleDebug
+          mkdir -p extracted
+          unzip -q "$ZIP_FILE" -d extracted
+          SETTINGS_FILE=$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "::error::Gradle project settings file not found"
+            find extracted -maxdepth 5 -type f | head -100
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$SETTINGS_FILE")" >> "$GITHUB_ENV"
+
+      - name: Build debug APK
+        run: |
+       
+          echo "Building from: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: BUILD-HIM-APK
-          path: extracted/**/app/build/outputs/apk/debug/app-debug.apk
+          path: extracted/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+          
